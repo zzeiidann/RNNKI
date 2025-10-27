@@ -18,7 +18,7 @@ use metrics::{rouge_all, rouge_1_f1}; // <<— import fungsi ROUGE
 const EMBEDDING_DIM: i64 = 256;
 const HIDDEN_DIM: i64 = 512;
 const NUM_LAYERS: i64 = 2;
-const BATCH_SIZE: i64 = 8;
+const BATCH_SIZE: i64 = 1;
 const MAX_SEQ_LEN: i64 = 512;
 const MAX_SUMMARY_LEN: i64 = 128;
 const EPOCHS: i64 = 5;
@@ -40,8 +40,8 @@ fn main() -> Result<()> {
     println!("✓ Number of CPU cores: {}\n", num_cpus::get());
 
     // Load and preprocess data
-    println!("Loading data from Data.csv...");
-    let data_loader = DataLoader::new("../Data.csv", MAX_SEQ_LEN as usize, MAX_SUMMARY_LEN as usize)?;
+    println!("Loading data from 500Sample.csv...");
+    let data_loader = DataLoader::new("../500Sample.csv", MAX_SEQ_LEN as usize, MAX_SUMMARY_LEN as usize)?;
 
     println!("✓ Loaded {} samples", data_loader.num_samples());
     println!("✓ Text column: {} unique values", data_loader.text_unique_count());
