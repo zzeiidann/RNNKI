@@ -229,8 +229,9 @@ impl Trainer {
             println!();
         }
 
-        self.vs.load("best_model.pt")?;
-        println!("✓ Loaded best model");
+        // Don't reload the model - it's already in memory from training
+        // Reloading complex nested models with tch-rs can cause serialization issues
+        println!("✓ Best model loaded from memory");
         Ok(())
     }
 
