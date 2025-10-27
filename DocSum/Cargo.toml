@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 # Core ML dependencies
-tch = "0.22"
+tch = "0.20"
 ndarray = "0.15"
 csv = "1.3"
 serde = { version = "1.0", features = ["derive"] }
@@ -18,8 +18,3 @@ num_cpus = "1.16"
 anyhow = "1.0"
 rand = "0.8"
 indicatif = "0.17"
-
-[features]
-default = ["cpu"]
-cpu = []
-cuda = []
