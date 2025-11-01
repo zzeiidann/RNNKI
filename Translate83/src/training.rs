@@ -136,10 +136,8 @@ impl Trainer {
             let logits_btV = self.model.forward(&src, &tgt_input, Some(&mask)); // ekspektasi [B,T,V] (3D)
 
             if first_batch {
-                println!("[DEBUG:train] logits.size() = {:?}", logits_btV.size());
                 let v_logits = *logits_btV.size().last().unwrap(); // **ambil dimensi terakhir**
                 let v_tok = dual_tokenizer.target.vocab_size() as i64;
-                println!("[DEBUG:train] last-dim V={}, tokenizer V={}", v_logits, v_tok);
                 if v_logits != v_tok {
                     anyhow::bail!(
                         "Vocab mismatch: model V={} vs tokenizer TARGET V={}. Pastikan layer output model memakai ukuran vocab TARGET.",
