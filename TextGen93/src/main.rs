@@ -134,24 +134,24 @@ fn test_generation(
     use rand::seq::SliceRandom;
     let mut rng = rand::thread_rng();
 
-    // Test dengan berbagai prompts
+    // ============= 1. GENERATION WITH DIFFERENT TEMPERATURES =============
+    println!("\n 1. Generation Examples (Different Temperatures):");
+    println!("{}", "-".repeat(60));
+    
     let test_prompts = vec![
         "once upon a time",
         "the quick brown",
         "in the beginning",
     ];
 
-    println!("\n Generation Examples:");
-    
     for (i, prompt) in test_prompts.iter().enumerate() {
         println!("\n{}. Prompt: \"{}\"", i + 1, prompt);
         
-        // Generate dengan temperature berbeda
         for temp in [0.7, 1.0, 1.2] {
             let generated = trainer.generate_text(
                 prompt,
                 tokenizer,
-                50,  // max_len
+                50,
                 temp,
             )?;
             
@@ -159,11 +159,11 @@ fn test_generation(
         }
     }
 
-    // Test pada validation sample
-    println!("\n Validation Samples:");
-    let samples: Vec<_> = val_data.choose_multiple(&mut rng, 3).collect();
+    // ============= 2. VALIDATION SAMPLES COMPARISON =============
+    println!("\n\n 2. Validation Samples Comparison:");
+    println!("{}", "-".repeat(60));
     
-    let mut generated_texts = Vec::new();
+    let samples: Vec<_> = val_data.choose_multiple(&mut rng, 3).collect();
     
     for (i, text) in samples.iter().enumerate() {
         println!("\n{}. Original:", i + 1);
@@ -178,7 +178,7 @@ fn test_generation(
             &prompt,
             tokenizer,
             60,
-            0.8,  // temperature
+            0.8,
         )?;
 
         println!("   Generated:");
@@ -186,19 +186,116 @@ fn test_generation(
 
         // Calculate metrics
         let metrics = GenerationMetrics::calculate(0.0, Some(text), &generated);
-        println!("\n   Metrics:");
+        println!("   Metrics:");
         println!("     BLEU-1: {:.3}", metrics.bleu_1);
         println!("     BLEU-2: {:.3}", metrics.bleu_2);
         println!("     Diversity-2: {:.3}", metrics.diversity_2);
         println!("     Repetition: {:.3}", metrics.repetition);
-
-        generated_texts.push(generated);
     }
 
-    // Self-BLEU for diversity
-    let self_bleu = metrics::self_bleu(&generated_texts, 2);
-    println!("\n Overall Diversity (Self-BLEU-2): {:.3}", self_bleu);
-    println!("   (Lower is more diverse)");
+    // ============= 3. MODEL DIVERSITY TEST (Self-BLEU) =============
+    println!("\n\n 3. Model Diversity Test (Self-BLEU):");
+    println!("{}", "=".repeat(60));
+    println!("Testing how diverse the model's outputs are when given the same prompt.");
+    println!("Lower Self-BLEU = More diverse outputs (better creativity)");
+    println!();
+
+    let diversity_prompts = vec![
+        "once upon a time",
+        "the quick brown",
+        "in the beginning",
+    ];
+
+    let num_generations = 8;  // Generate 8 teks per prompt
+
+    for (idx, prompt) in diversity_prompts.iter().enumerate() {
+        println!("\n{}.{} Prompt: \"{}\"", idx + 1, "─".repeat(55), prompt);
+        
+        let mut generated_texts = Vec::new();
+        
+        // Generate beberapa kali dengan prompt yang SAMA
+        for i in 0..num_generations {
+            let generated = trainer.generate_text(
+                prompt,
+                tokenizer,
+                60,
+                0.8,  // temperature tetap
+            )?;
+            
+            // Print preview
+            let preview = if generated.len() > 70 {
+                format!("{}...", &generated[..70])
+            } else {
+                generated.clone()
+            };
+            println!("   {}. {}", i + 1, preview);
+            
+            generated_texts.push(generated);
+        }
+        
+        // Hitung Self-BLEU untuk prompt ini
+        let self_bleu_2 = metrics::self_bleu(&generated_texts, 2);
+        let self_bleu_3 = metrics::self_bleu(&generated_texts, 3);
+        
+        println!("\n   Diversity Metrics for this prompt:");
+        println!("     Self-BLEU-2: {:.3} (bigram overlap)", self_bleu_2);
+        println!("     Self-BLEU-3: {:.3} (trigram overlap)", self_bleu_3);
+        
+        // Interpretasi
+        let interpretation = if self_bleu_2 < 0.3 {
+            "Excellent diversity!"
+        } else if self_bleu_2 < 0.5 {
+            "Good diversity"
+        } else if self_bleu_2 < 0.7 {
+            "Moderate diversity"
+        } else {
+            "Low diversity (repetitive outputs)"
+        };
+        println!("     Interpretation: {}", interpretation);
+    }
+
+    // ============= 4. OVERALL DIVERSITY WITH DIFFERENT TEMPERATURES =============
+    println!("\n\n 4. Temperature Impact on Diversity:");
+    println!("{}", "-".repeat(60));
+    
+    let test_prompt = "once upon a time";
+    let temperatures = vec![0.5, 0.8, 1.0, 1.2];
+    
+    for temp in temperatures {
+        println!("\n   Temperature: {:.1}", temp);
+        let mut generated_texts = Vec::new();
+        
+        for i in 0..6 {
+            let generated = trainer.generate_text(
+                test_prompt,
+                tokenizer,
+                60,
+                temp,
+            )?;
+            
+            let preview = if generated.len() > 60 {
+                format!("{}...", &generated[..60])
+            } else {
+                generated.clone()
+            };
+            println!("     {}. {}", i + 1, preview);
+            
+            generated_texts.push(generated);
+        }
+        
+        let self_bleu = metrics::self_bleu(&generated_texts, 2);
+        println!("     → Self-BLEU-2: {:.3}", self_bleu);
+    }
+
+    // ============= 5. SUMMARY =============
+    println!("\n\n{}", "=".repeat(60));
+    println!(" SUMMARY");
+    println!("{}", "=".repeat(60));
+    println!("✓ Generation test completed");
+    println!("✓ Lower Self-BLEU indicates more diverse and creative outputs");
+    println!("✓ Higher temperature generally increases diversity");
+    println!("✓ Optimal temperature balances diversity and coherence (0.7-1.0)");
+    println!("{}", "=".repeat(60));
 
     Ok(())
 }
