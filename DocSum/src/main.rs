@@ -40,8 +40,7 @@ fn main() -> Result<()> {
     println!("✓ Number of CPU cores: {}\n", num_cpus::get());
 
     // Load and preprocess data
-    println!("Loading data from 500Sample.csv...");
-    let data_loader = DataLoader::new("../500Sample.csv", MAX_SEQ_LEN as usize, MAX_SUMMARY_LEN as usize)?;
+    let data_loader = DataLoader::new("../500Docsum.csv", MAX_SEQ_LEN as usize, MAX_SUMMARY_LEN as usize)?;
 
     println!("✓ Loaded {} samples", data_loader.num_samples());
     println!("✓ Text column: {} unique values", data_loader.text_unique_count());
