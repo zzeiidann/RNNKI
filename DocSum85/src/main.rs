@@ -4,26 +4,29 @@ use tch::{nn, nn::OptimizerConfig, Device};
 
 mod data_loader;
 mod tokenizer;
-mod model;
+mod model_transformer;
+mod transformer;
 mod attention;
 mod training;
 mod metrics;
 
 use data_loader::DataLoader;
 use tokenizer::Tokenizer;
-use model::AttentionRNN;
+use model_transformer::TransformerSeq2Seq;
 use training::Trainer;
 use metrics::{rouge_all, rouge_1_f1};
 
 const EMBEDDING_DIM: i64 = 256;
 const HIDDEN_DIM: i64 = 512;
 const NUM_LAYERS: i64 = 2;
-const NUM_HEADS: i64 = 8;  // <<— Parameter baru untuk multi-head attention
-const BATCH_SIZE: i64 = 1;
+const NUM_HEADS: i64 = 8;       // Number of attention heads
+const FF_DIM: i64 = 2048;        // Feed-forward dimension
+const BATCH_SIZE: i64 = 8;
 const MAX_SEQ_LEN: i64 = 512;
 const MAX_SUMMARY_LEN: i64 = 128;
-const EPOCHS: i64 = 1;
+const EPOCHS: i64 = 50;
 const LEARNING_RATE: f64 = 0.0001;
+const VOCAB_SIZE: usize = 20000;
 
 fn main() -> Result<()> {
     println!("Document Summarization with Multi-Head Attention RNN");
@@ -48,7 +51,7 @@ fn main() -> Result<()> {
 
     // Build tokenizer
     println!("Building tokenizer...");
-    let mut tokenizer = Tokenizer::new(10000);
+    let mut tokenizer = Tokenizer::new(VOCAB_SIZE);
     tokenizer.fit(&data_loader)?;
     let vocab_size = tokenizer.vocab_size() as i64;
     println!("✓ Vocabulary size: {}\n", vocab_size);
@@ -58,23 +61,27 @@ fn main() -> Result<()> {
     println!("✓ Training samples: {}", train_data.len());
     println!("✓ Validation samples: {}\n", val_data.len());
 
-    // Create model with multi-head attention
-    println!("Initializing Multi-Head Attention RNN model...");
+    // Create Transformer-based model with multi-head attention
+    println!("Initializing Transformer-Based Multi-Head Attention model...");
     println!("✓ Number of attention heads: {}", NUM_HEADS);
     println!("✓ Hidden dimension: {}", HIDDEN_DIM);
-    println!("✓ Head dimension: {}\n", HIDDEN_DIM * 2 / NUM_HEADS);
+    println!("✓ Feed-forward dimension: {}", FF_DIM);
+    println!("✓ Number of layers: {}", NUM_LAYERS);
+    println!("✓ Head dimension: {}\n", HIDDEN_DIM / NUM_HEADS);
     
     let vs = nn::VarStore::new(device);
-    let model = AttentionRNN::new_with_heads(
+    let model = TransformerSeq2Seq::new(
         &vs.root(),
         vocab_size,
         EMBEDDING_DIM,
         HIDDEN_DIM,
         NUM_LAYERS,
-        0.3,        // dropout
-        NUM_HEADS,  // number of attention heads
+        NUM_HEADS,
+        FF_DIM,
+        0.3,  // dropout
+        device,
     );
-    println!("✓ Model initialized on {:?}\n", device);
+    println!("✓ Transformer model initialized on {:?}\n", device);
 
     // Create optimizer
     let opt = nn::Adam::default().build(&vs, LEARNING_RATE)?;
@@ -103,8 +110,8 @@ fn main() -> Result<()> {
 
     // Save model
     println!("\nSaving model...");
-    trainer.save_model("multihead_attention_rnn_model.pt")?;
-    println!("✓ Model saved to multihead_attention_rnn_model.pt");
+    trainer.save_model("transformer_multihead_attention_model.pt")?;
+    println!("✓ Model saved to transformer_multihead_attention_model.pt");
 
     // Test summarization
     println!("\nTesting summarization on validation samples...");

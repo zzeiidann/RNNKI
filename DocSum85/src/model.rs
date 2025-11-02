@@ -1,4 +1,7 @@
 // src/model.rs
+// This file is deprecated. Use model_transformer.rs instead.
+// Kept for backward compatibility reference only.
+
 use tch::{nn, nn::Module, nn::RNN, nn::LSTMState, Tensor, Kind};
 use crate::attention::MultiHeadAttention;
 
@@ -115,7 +118,7 @@ impl AttentionRNN {
         let (encoder_outputs_tbh, _enc_state) = self.encoder_lstm.seq(&embedded_t);
         let encoder_outputs = encoder_outputs_tbh.transpose(0, 1).contiguous();
 
-        let b = input.size()[0];
+        let b = encoder_outputs.size()[0];
         let device = input.device();
         let dec_h0 = Tensor::zeros(&[self.num_layers, b, self.hidden_dim], (Kind::Float, device));
         let dec_c0 = Tensor::zeros(&[self.num_layers, b, self.hidden_dim], (Kind::Float, device));

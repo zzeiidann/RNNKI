@@ -4,11 +4,11 @@ use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use tch::{nn, Device, Kind, Tensor};
 
-use crate::model::AttentionRNN;
+use crate::model_transformer::TransformerSeq2Seq;
 use crate::tokenizer::Tokenizer;
 
 pub struct Trainer {
-    model: AttentionRNN,
+    model: TransformerSeq2Seq,
     vs: nn::VarStore,
     opt: nn::Optimizer,
     device: Device,
@@ -17,7 +17,7 @@ pub struct Trainer {
 
 impl Trainer {
     pub fn new(
-        model: AttentionRNN,
+        model: TransformerSeq2Seq,
         vs: nn::VarStore,
         opt: nn::Optimizer,
         device: Device,
@@ -76,7 +76,6 @@ impl Trainer {
         pad_id: i64,
     ) -> Tensor {
         let device = logits_flat.device();
-        let n = logits_flat.size()[0];
         let v = logits_flat.size()[1];
 
         // target long di device yg sama
@@ -235,7 +234,7 @@ impl Trainer {
         Ok(())
     }
 
-    /// Greedy decode untuk generate ringkasan
+    /// Greedy decoding to generate summary
     pub fn generate_summary(
         &mut self,
         text: &str,
@@ -260,26 +259,20 @@ impl Trainer {
                 .to_kind(Kind::Bool)
                 .to(device);
 
-            // Encode
-            let (encoder_outputs, mut state) = self.model.encode(&src_tensor);
+            // Generate summary using Transformer model
+            let generated = self.model.generate_greedy(
+                &src_tensor,
+                Some(&mask_tensor),
+                max_len as i64,
+                tokenizer.eos_token_id() as i64,
+                tokenizer.sos_token_id() as i64,
+            );
 
-            // Start dengan SOS
-            let mut current_token = tokenizer.sos_token_id() as i64;
-            let mut generated_tokens = Vec::new();
+            // Convert to indices
+            let generated_vec: Vec<i64> = generated.view([-1]).try_into().unwrap_or_default();
+            let generated_usize: Vec<usize> = generated_vec.iter().map(|&x| x as usize).collect();
 
-            for _ in 0..max_len {
-                let input = Tensor::from_slice(&[current_token]).view([1, 1]).to(device);
-                let (logits, new_state, _) =
-                    self.model.decode_step(&input, &state, &encoder_outputs, Some(&mask_tensor));
-                state = new_state;
-
-                let predicted = logits.argmax(-1, false);
-                current_token = i64::try_from(&predicted).unwrap_or(tokenizer.eos_token_id() as i64);
-                if current_token == tokenizer.eos_token_id() as i64 { break; }
-                generated_tokens.push(current_token as usize);
-            }
-
-            tokenizer.decode(&generated_tokens)
+            tokenizer.decode(&generated_usize)
         });
 
         Ok(result)
